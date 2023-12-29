@@ -8,23 +8,32 @@ if os.path.exists(libdir):
     sys.path.append(libdir)
 from signal import pause
 import modules
-import ui
-import apps
-
 class Buffer:
-    def __init__(self, width, height):
+    def __init__(self, width, height, data = 0xFF):
         self.width = width
         self.height = height
-        self.buf = [0xFF] * (int(width/8) * height)
-
+        self.buf = [data] * (int(width/8) * height)
 width = modules.epd.width
 height = modules.epd.height
+buf = Buffer(width, height)
+
+import ui
+
+message = modules.motb+"\n\n"+modules.qotb
+message_height = (len(ui.draw_page(buf, message, 1, 0, 0, noRender=True, returnLines=True)[1])) * 12
+ui.draw_page(buf, message, 1, 0, 0, yoffset=buf.height-message_height, ignoreControls=True)
+
+ui.draw_text(buf, 0, 0, "Loaded hardware interface.")
+ui.draw_text(buf, 0, 10, "Initializing display: Done")
+ui.draw_text(buf, 0, 20, "Loading applications:")
+modules.epdDraw(buf.buf, True)
+import apps
+ui.draw_text(buf, ui.text_bounds("Loading applications: ")[0], 20, "Done")
+ui.draw_text(buf, 0, 35, "Starting control system...")
+modules.epdDraw(buf.buf, True)
+
 
 inputs = [0, 0, 0, 0]
-
-logging.basicConfig(level=logging.DEBUG)
-
-buf = Buffer(width, height)
 
 #Draw the controls at the bottom of the screen, accounting for text length.
 def drawControls(text = ['Up', 'Select', 'Down']):
@@ -38,26 +47,22 @@ def drawControls(text = ['Up', 'Select', 'Down']):
         menuChar = 'O'
     ui.draw_text(buf, width - 10, height - 12, menuChar)
 
-
+#Used for main menu app switching
 appList = [
-    apps.launcher,
+    apps.launcher, #Application launcher/home menu
     apps.reader,
     apps.tools
 ]
-launcher = appList[0]
-mainApplications = {app.name: app for app in appList}
+mainApplications = {app.name: app for app in appList} #Access by name. This is the preferred method
+launcher = mainApplications['launcher'] #Home option in main menu goes to this
 
-application = launcher
-
+application = launcher #Start with launcher
 mainVariables = {
     'mainMenuOpened': False
 }
-
-buf_width = width
-buf_height = height
-buf = Buffer(buf_width, buf_height)
 mainMenu = ui.Menu(["Home"])
-def drawMain(inputs):
+def handleMain(inputs):
+    #These need to be global, are modified from functions they're called in
     global application
     global buf
     
@@ -78,32 +83,34 @@ def drawMain(inputs):
             if(val == 0):
                 application.kill(application)
                 application = launcher
+                application.run(buf, [0, 0, 0, 0], application)
             else:
                 application.menuOptions[mainMenu.get_selected_option()](application)
                 application.run(buf, emuInputs, application)
-
     else:
-        ret = application.run(buf, emuInputs, application)
+        ret = application.run(buf, inputs, application)
         if(ret is not True): #Make this a command if its not true, instead of a code to assume application switching
             print(f"Swapping application to {ret}")
             application.kill(application)
             application = mainApplications[ret]
             application.run(buf, [0, 0, 0, 0], application)
 
-    #Application overrides
+    #Main menu overrides
     mainMenu.options = ["Home"]
     mainMenu.options.extend(application.menuOptions)
 
+    #After application is ran/drawn (or not), we render the main menu, controls ui, and finally commit the final buffer to the screen
     if(mainVariables['mainMenuOpened']):
-        mainMenu.draw(buf, (width // 3), 0, width, height)
+        mainMenu.draw(buf, (width // 3), 0, width, height, size=1)
 
     drawControls()
 
     modules.epdDraw(buf.buf)
 
+#One main call per input
 def input_pressed():
     global inputs
-    drawMain(inputs)
+    handleMain(inputs)
     inputs = [0, 0, 0, 0]
 
 #Callbacks
@@ -128,5 +135,5 @@ callbacks = {
 input = modules.Input({1: modules.btn1, 2: modules.btn2, 3: modules.btn3, 4: modules.btn4})
 input.on_button_press(callbacks)
 
-drawMain(inputs)
+handleMain(inputs)
 pause()

@@ -7,6 +7,43 @@ libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__)
 if os.path.exists(libdir):
     sys.path.append(libdir)
 from waveshare_epd import epd2in7_V2
+from random import randint
+
+messages = [
+    "You are appreciated!",
+    "Hope you are well! :3",
+    "Thank goodness you're here!",
+    "Have a lot of fun...",
+    "Huh? I'm awake!",
+    "We have a calendar!",
+    "Stay hydrated!",
+    "Remember to write!",
+    "Good morning, day, evening, or night!"
+]
+
+#qotb question of the boot. short questions to get you thinking
+questions = [
+    "What are you thankful for?",
+    "What are you looking forward to?",
+    "What are you excited about?",
+    "How are you feeling?",
+    "What are you thinking about?",
+    "When did you meditate last?",
+    "Make sure to eat!",
+    "Have you slept well?",
+    "What's today's plan?",
+    "What's new?",
+    "What's up?",
+    "How's it going?",
+    "How are you?",
+    "Do you have a happy place?",
+    "What are you learning?",
+    "What are you writing?",
+    "What are you reading?",
+    "What are you creating?"
+]
+motb = messages[randint(0, len(messages) - 1)]
+qotb = questions[randint(0, len(questions) - 1)]
 
 #Display init
 epd = epd2in7_V2.EPD()
@@ -43,7 +80,7 @@ btn3.when_pressed = handleBtnPress
 btn4.when_pressed = handleBtnPress
 
 fast_count = 6
-def epdDraw(data):
+def epdDraw(data, fast=False):
     global fast_count
     if fast_count < 6:
         epd.init_Fast()
