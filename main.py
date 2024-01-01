@@ -60,11 +60,18 @@ application = launcher #Start with launcher
 mainVariables = {
     'mainMenuOpened': False
 }
+osData = {
+    'flags': {
+        'keyboard': False
+    },
+    'keyboardQueue': []
+}
 mainMenu = ui.Menu(["Home"])
 def handleMain(inputs):
     #These need to be global, are modified from functions they're called in
     global application
     global buf
+    global osData
     
     #emuInputs allows the control program to inject inputs into applications
     emuInputs = inputs
@@ -83,17 +90,17 @@ def handleMain(inputs):
             if(val == 0):
                 application.kill(application)
                 application = launcher
-                application.run(buf, [0, 0, 0, 0], application)
+                application.run(buf, [0, 0, 0, 0], application, osData)
             else:
                 application.menuOptions[mainMenu.get_selected_option()](application)
-                application.run(buf, emuInputs, application)
+                application.run(buf, emuInputs, application, osData)
     else:
-        ret = application.run(buf, inputs, application)
+        ret = application.run(buf, inputs, application, osData)
         if(ret is not True): #Make this a command if its not true, instead of a code to assume application switching
             print(f"Swapping application to {ret}")
             application.kill(application)
             application = mainApplications[ret]
-            application.run(buf, [0, 0, 0, 0], application)
+            application.run(buf, [0, 0, 0, 0], application, osData)
 
     #Main menu overrides
     mainMenu.options = ["Home"]
@@ -134,6 +141,32 @@ callbacks = {
 }
 input = modules.Input({1: modules.btn1, 2: modules.btn2, 3: modules.btn3, 4: modules.btn4})
 input.on_button_press(callbacks)
+
+def set_keyboard_flag():
+    if(osData["flags"]["keyboard"] != True):
+        osData["flags"]["keyboard"] = True
+        handleMain(inputs)
+import keyboard
+keyboard_timer = modules.Timer(1, set_keyboard_flag)
+def handle_keyboard_press(key):
+    global osData
+    global keyboard_timer
+    if(key.name == 'up'):
+        handle_button1_press()
+        return
+    if(key.name == 'down'):
+        handle_button3_press()
+        return
+    if(key.name == 'left'):
+        handle_button2_press()
+        return
+    if(key.name == 'right'):
+        handle_button4_press()
+        return
+    keyboard_timer.start()
+    osData["keyboardQueue"].append(key.name)
+    if(len(osData["keyboardQueue"]) > 5):
+        set_keyboard_flag()
 
 handleMain(inputs)
 pause()

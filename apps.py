@@ -68,11 +68,20 @@ class Application:
 def nop(*args):
     pass
 
-def drawTools(buf, inputs, app):
+def drawTools(buf, inputs, app, osData):
     ui.draw_rectangle(buf, 0, 0, buf.width, buf.height, fill=255)
+    if osData["flags"]["keyboard"]:
+        text = "".join(osData["keyboardQueue"])
+        text_size = ui.text_bounds(text)
+        app.variables["cursor"][0] += text_size[0]
+        if(app.variables["cursor"][0] >= buf.width):
+            app.variables["cursor"][1] += 10
+            app.variables["cursor"][0] = 0
+        ui.draw_text(buf, app.variables["cursor"][0], app.variables["cursor"][1], text, fill=0)
+        osData["flags"]['keyboard'] = False
     return True
 
-def drawHome(buf, inputs, app):
+def drawHome(buf, inputs, app, osData):
     if inputs[0] == 1:
         app.variables["menu"].select_previous()
     if inputs[2] == 1:
@@ -98,7 +107,7 @@ def drawStats(buf, book, document, page):
     ui.draw_text(buf, 131, 1, f"Pg. {page}", fill=0)
     ui.draw_line(buf, 0, 10, buf.width, 10)
 
-def handleReader(buf, inputs, app):
+def handleReader(buf, inputs, app, osData):
     if(app.variables["readerState"] == "browse"):
         if inputs[0] == 1:
             app.variables["menu"].select_previous()
@@ -194,4 +203,4 @@ def nextDocument(app):
 
 launcher = Application("launcher", nop, drawHome, nop, {"menu": ui.Menu(["Reader", "Tools"])})
 reader = Application("reader", nop, handleReader, killReader, {"menu": ui.Menu([book.name for book in books]), "readerState": "browse", "book": None, "content": None, "page": 1, "pageTotal": 1, "document": 0, "cachedLines": []}, {"Next Document": nextDocument, "To Start": startDocument, "Create Bookmark": createBookmark, "Load Bookmark": loadBookmark})
-tools = Application("tools", nop, drawTools, nop, {})
+tools = Application("tools", nop, drawTools, nop, {"cursor": [0, 0]})

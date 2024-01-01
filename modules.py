@@ -45,12 +45,17 @@ questions = [
 motb = messages[randint(0, len(messages) - 1)]
 qotb = questions[randint(0, len(questions) - 1)]
 
+flags = {
+    "keyboard": False
+}
+
 #Display init
 epd = epd2in7_V2.EPD()
 epd.init()
 epd.Clear()
 
 #Input
+keyboardQueue = []
 from gpiozero import Button
 btn1 = Button(5)
 btn2 = Button(6)
@@ -103,3 +108,25 @@ class Input:
     def on_button_press(self, callbacks):
         for button_number, callback in callbacks.items():
             self.buttons[button_number].when_pressed = callback
+
+import threading
+class Timer:
+    def __init__(self, time, callback, repeat = False):
+        self.callback = callback
+        self.repeat = repeat
+        self.timer = threading.Timer(time, self.run_callback)
+
+    def run_callback(self):
+        self.callback()
+        if self.repeat:
+            self.timer.start()
+        else:
+            self.stop()
+
+    def start(self):
+        self.timer.cancel()
+        self.timer.start()
+        
+    def stop(self):
+        self.timer.cancel()
+    
