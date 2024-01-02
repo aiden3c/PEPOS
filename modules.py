@@ -84,6 +84,14 @@ btn2.when_pressed = handleBtnPress
 btn3.when_pressed = handleBtnPress
 btn4.when_pressed = handleBtnPress
 
+def epdDrawFresh(data):
+    global fast_count
+    global partial_count
+    epd.init()
+    epd.display(data)
+    fast_count = 0
+    partial_count = 0
+
 fast_count = 6
 def epdDraw(data, fast=False):
     global fast_count
@@ -95,6 +103,28 @@ def epdDraw(data, fast=False):
         epd.init()
         epd.display(data)
         fast_count = 0
+
+def epdInitPartial(buf):
+    epd.display_Base(buf.buf)
+
+partial_count = 0
+partial_count_limit = 6
+def epdDrawPartial(startBuf, update, startx, starty, endx, endy):
+    global partial_count
+    buf = startBuf
+    for y in range(starty, endy):
+        for x in range(startx, endx):
+            buf_value = (update.buf[int(((x-startx) + (y-starty) * update.width) / 8)] >> (7 - (x-startx) % 8)) & 1
+            if buf_value:
+                buf.buf[int((x + y * buf.width) / 8)] |= (0x80 >> (x % 8))
+            else:
+                buf.buf[int((x + y * buf.width) / 8)] &= ~(0x80 >> (x % 8))
+    if partial_count == partial_count_limit:
+        epdDrawFresh(startBuf.buf)
+        return partial_count_limit
+    partial_count += 1
+    epd.display_Partial(buf.buf, startx, starty, endx, endy)
+    return partial_count_limit - partial_count
 
 class Display:
     #Refresh entire screen, determining whether it should be a fast draw or not

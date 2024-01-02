@@ -1,11 +1,7 @@
 import fonts
 import math
 
-class Buffer:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.buf = bytearray(math.ceil(width * height / 8))
+from oslib import Buffer
 
 class Menu:
     def __init__(self, options):

@@ -56,14 +56,7 @@ books = [
     Book("365 Days with Self-Discipline", epub.read_epub("selfhelp.epub")),
 ]
 
-class Application:
-    def __init__(self, name, init, run, kill, variables, menuOptions={}):
-        self.name = name
-        self.init = init
-        self.run = run
-        self.kill = kill
-        self.variables = variables
-        self.menuOptions = menuOptions
+from oslib import Application, Command
 
 def nop(*args):
     pass
@@ -89,7 +82,7 @@ def drawHome(buf, inputs, app, osData):
     if inputs[1] == 1:
         global application
         application = app.variables["menu"].options[app.variables["menu"].selection].lower()
-        return application
+        return Command("launch", application)
     else:
         app.variables["menu"].draw(buf, 0, 0, buf.width, buf.height)
     return True
@@ -201,6 +194,6 @@ def nextDocument(app):
     app.variables["page"] = 1
     app.variables["content"] = str(list(app.variables["book"].get_items_of_type(ITEM_DOCUMENT))[app.variables["document"]].get_content())
 
-launcher = Application("launcher", nop, drawHome, nop, {"menu": ui.Menu(["Reader", "Tools"])})
+launcher = Application("launcher", nop, drawHome, nop, {"menu": ui.Menu(["Terminal", "Reader", "Tools"])})
 reader = Application("reader", nop, handleReader, killReader, {"menu": ui.Menu([book.name for book in books]), "readerState": "browse", "book": None, "content": None, "page": 1, "pageTotal": 1, "document": 0, "cachedLines": []}, {"Next Document": nextDocument, "To Start": startDocument, "Create Bookmark": createBookmark, "Load Bookmark": loadBookmark})
 tools = Application("tools", nop, drawTools, nop, {"cursor": [0, 0]})

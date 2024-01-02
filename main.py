@@ -28,12 +28,36 @@ ui.draw_text(buf, 0, 10, "Initializing display: Done")
 ui.draw_text(buf, 0, 20, "Loading applications:")
 modules.epdDraw(buf.buf, True)
 import apps
+import tester
+import terminal
 ui.draw_text(buf, ui.text_bounds("Loading applications: ")[0], 20, "Done")
 ui.draw_text(buf, 0, 35, "Starting control system...")
 modules.epdDraw(buf.buf, True)
 
 
 inputs = [0, 0, 0, 0]
+
+def handleCommand(command):
+    global buf
+    global application
+    global osData
+    ret = command
+    if ret.name == "launch":
+        print(f"Launching {ret.arguments[0]}")
+        application.kill(application)
+        application = mainApplications[ret.arguments[0]]
+        initRet = application.init(buf, application, osData)
+        if initRet != True:
+            handleCommand(initRet)
+        application.run(buf, [0, 0, 0, 0], application, osData)
+    elif ret.name == "kill":
+        application.kill(application)
+        application = launcher
+        application.run(buf, [0, 0, 0, 0], application, osData)
+    elif ret.name == "setFlag":
+        flag = ret.arguments[0]
+        val  = ret.arguments[1]
+        osData["flags"][flag] = val
 
 #Draw the controls at the bottom of the screen, accounting for text length.
 def drawControls(text = ['Up', 'Select', 'Down']):
@@ -51,7 +75,9 @@ def drawControls(text = ['Up', 'Select', 'Down']):
 appList = [
     apps.launcher, #Application launcher/home menu
     apps.reader,
-    apps.tools
+    apps.tools,
+    tester.testerApp,
+    terminal.app,
 ]
 mainApplications = {app.name: app for app in appList} #Access by name. This is the preferred method
 launcher = mainApplications['launcher'] #Home option in main menu goes to this
@@ -62,9 +88,13 @@ mainVariables = {
 }
 osData = {
     'flags': {
-        'keyboard': False
+        'keyboard': False,
+        'shift': False,
+        'backspace': False,
+        'noDraw': False #Welcome to full hardware control, modules are your friend
     },
-    'keyboardQueue': []
+    'keyboardQueue': [],
+    'modules': modules
 }
 mainMenu = ui.Menu(["Home"])
 def handleMain(inputs):
@@ -97,10 +127,8 @@ def handleMain(inputs):
     else:
         ret = application.run(buf, inputs, application, osData)
         if(ret is not True): #Make this a command if its not true, instead of a code to assume application switching
-            print(f"Swapping application to {ret}")
-            application.kill(application)
-            application = mainApplications[ret]
-            application.run(buf, [0, 0, 0, 0], application, osData)
+            handleCommand(ret)
+
 
     #Main menu overrides
     mainMenu.options = ["Home"]
@@ -110,9 +138,9 @@ def handleMain(inputs):
     if(mainVariables['mainMenuOpened']):
         mainMenu.draw(buf, (width // 3), 0, width, height, size=1)
 
-    drawControls()
-
-    modules.epdDraw(buf.buf)
+    if not osData["flags"]["noDraw"]:
+        drawControls()
+        modules.epdDraw(buf.buf)
 
 #One main call per input
 def input_pressed():
@@ -146,8 +174,9 @@ def set_keyboard_flag():
     if(osData["flags"]["keyboard"] != True):
         osData["flags"]["keyboard"] = True
         handleMain(inputs)
+
 import keyboard
-keyboard_timer = modules.Timer(1, set_keyboard_flag)
+keyboard_timer = modules.Timer(1, set_keyboard_flag) #Unused for now, waiting on bugfix
 def handle_keyboard_press(key):
     global osData
     global keyboard_timer
@@ -163,10 +192,29 @@ def handle_keyboard_press(key):
     if(key.name == 'right'):
         handle_button4_press()
         return
-    keyboard_timer.start()
-    osData["keyboardQueue"].append(key.name)
-    if(len(osData["keyboardQueue"]) > 5):
-        set_keyboard_flag()
+    if(key.name == 'shift'):
+        osData["flags"]["shift"] = True
+        return
+    if(key.name == 'backspace'):
+        osData["flags"]["backspace"] = True
+        return
+    if(osData['flags']['shift']):
+        osData["keyboardQueue"].append(key.name.upper())
+    else:
+        osData["keyboardQueue"].append(key.name)
+    set_keyboard_flag()
+    
+def handle_key_release(key):
+    global osData
+    if(key.name == 'shift'):
+        osData["flags"]["shift"] = False
+        return
+    if(key.name == 'backspace'):
+        osData["flags"]["backspace"] = False
+        return
+    
+keyboard.on_press(handle_keyboard_press)
+keyboard.on_release(handle_key_release)
 
 handleMain(inputs)
 pause()
