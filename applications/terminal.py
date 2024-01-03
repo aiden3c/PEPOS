@@ -3,7 +3,7 @@ import os
 import pickle
 import time
 
-from oslib import Application, Buffer, Command
+from oslib import Application, Buffer, Command, nop
 
 def load_settings(filename):
     filepath = os.path.join('config', filename)
@@ -17,9 +17,6 @@ def save_settings(filename, data):
     with open(filepath, 'wb') as f:
         pickle.dump(data, f)
 
-def nop(*args):
-    pass
-
 def init(buf, app, osData):
     print("running init")
     ui.draw_rectangle(buf, 0, 0, buf.width, buf.height, fill=255)
@@ -30,12 +27,12 @@ def init(buf, app, osData):
     return Command("setFlag", "noDraw", True)
 
 def fix_char(text):
-    if(text == "space"):
+    if(text.lower() == "space"):
         return " "
     return text
 
 def main(buf, inputs, app, osData):
-    if osData["flags"]["keyboard"] and (len(osData["keyboardQueue"]) > 5 or time.time() - app.variables["lastUpdate"] > .5):
+    if osData["flags"]["keyboard"] and (len(osData["keyboardQueue"]) > 10 or time.time() - app.variables["lastUpdate"] > .5):
         print(app.variables["text_buffer"].width, app.variables["text_buffer"].height)
         for key in osData["keyboardQueue"]:
             key = fix_char(key)

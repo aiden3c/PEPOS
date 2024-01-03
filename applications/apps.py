@@ -56,10 +56,7 @@ books = [
     Book("365 Days with Self-Discipline", epub.read_epub("selfhelp.epub")),
 ]
 
-from oslib import Application, Command
-
-def nop(*args):
-    pass
+from oslib import Application, Command, nop
 
 def drawTools(buf, inputs, app, osData):
     ui.draw_rectangle(buf, 0, 0, buf.width, buf.height, fill=255)

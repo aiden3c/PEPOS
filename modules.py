@@ -45,44 +45,17 @@ questions = [
 motb = messages[randint(0, len(messages) - 1)]
 qotb = questions[randint(0, len(questions) - 1)]
 
-flags = {
-    "keyboard": False
-}
-
 #Display init
 epd = epd2in7_V2.EPD()
 epd.init()
 epd.Clear()
 
 #Input
-keyboardQueue = []
 from gpiozero import Button
 btn1 = Button(5)
 btn2 = Button(6)
 btn3 = Button(13)
 btn4 = Button(19)
-
-def handleBtnPress(btn):
-    
-    # get the button pin number
-    pinNum = btn.pin.number
-    
-    # python hack for a switch statement. The number represents the pin number and
-    # the value is the message we will print
-    switcher = {
-        5: "1",
-        6: "2",
-        13: "3",
-        19: "4"
-    }
-    
-    # get the string based on the passed in button and send it to printToDisplay()
-    print(switcher.get(btn.pin.number, "Error"))
-
-btn1.when_pressed = handleBtnPress
-btn2.when_pressed = handleBtnPress
-btn3.when_pressed = handleBtnPress
-btn4.when_pressed = handleBtnPress
 
 def epdDrawFresh(data):
     global fast_count
@@ -93,7 +66,7 @@ def epdDrawFresh(data):
     partial_count = 0
 
 fast_count = 6
-def epdDraw(data, fast=False):
+def epdDraw(data):
     global fast_count
     if fast_count < 6:
         epd.init_Fast()
@@ -108,7 +81,7 @@ def epdInitPartial(buf):
     epd.display_Base(buf.buf)
 
 partial_count = 0
-partial_count_limit = 6
+partial_count_limit = 8
 def epdDrawPartial(startBuf, update, startx, starty, endx, endy):
     global partial_count
     buf = startBuf
@@ -139,6 +112,7 @@ class Input:
         for button_number, callback in callbacks.items():
             self.buttons[button_number].when_pressed = callback
 
+#Move this to oslib after /the/ bug fix
 import threading
 class Timer:
     def __init__(self, time, callback, repeat = False):

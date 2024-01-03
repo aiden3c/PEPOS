@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import logging
 import sys
 import os
 picdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'pic')
@@ -8,41 +7,33 @@ if os.path.exists(libdir):
     sys.path.append(libdir)
 from signal import pause
 import modules
-class Buffer:
-    def __init__(self, width, height, data = 0xFF):
-        self.width = width
-        self.height = height
-        self.buf = [data] * (int(width/8) * height)
+
+from oslib import Buffer, Command, Application
 width = modules.epd.width
 height = modules.epd.height
 buf = Buffer(width, height)
 
 import ui
-
 message = modules.motb+"\n\n"+modules.qotb
 message_height = (len(ui.draw_page(buf, message, 1, 0, 0, noRender=True, returnLines=True)[1])) * 12
 ui.draw_page(buf, message, 1, 0, 0, yoffset=buf.height-message_height, ignoreControls=True)
-
 ui.draw_text(buf, 0, 0, "Loaded hardware interface.")
 ui.draw_text(buf, 0, 10, "Initializing display: Done")
 ui.draw_text(buf, 0, 20, "Loading applications:")
-modules.epdDraw(buf.buf, True)
-import apps
-import tester
-import terminal
+modules.epdDraw(buf.buf)
+import applications.apps as apps
+import applications.tester as tester
+import applications.terminal as terminal
 ui.draw_text(buf, ui.text_bounds("Loading applications: ")[0], 20, "Done")
 ui.draw_text(buf, 0, 35, "Starting control system...")
-modules.epdDraw(buf.buf, True)
-
-
-inputs = [0, 0, 0, 0]
+modules.epdDraw(buf.buf)
 
 def handleCommand(command):
     global buf
     global application
     global osData
     ret = command
-    if ret.name == "launch":
+    if ret.name == "launch": # application name
         print(f"Launching {ret.arguments[0]}")
         application.kill(application)
         application = mainApplications[ret.arguments[0]]
@@ -50,16 +41,15 @@ def handleCommand(command):
         if initRet != True:
             handleCommand(initRet)
         application.run(buf, [0, 0, 0, 0], application, osData)
-    elif ret.name == "kill":
+    elif ret.name == "kill": # [no arguments]
         application.kill(application)
         application = launcher
         application.run(buf, [0, 0, 0, 0], application, osData)
-    elif ret.name == "setFlag":
+    elif ret.name == "setFlag": # flag, val
         flag = ret.arguments[0]
         val  = ret.arguments[1]
         osData["flags"][flag] = val
 
-#Draw the controls at the bottom of the screen, accounting for text length.
 def drawControls(text = ['Up', 'Select', 'Down']):
     ui.draw_rectangle(buf, 0, height - 20, width, height, fill=255)
     ui.draw_line(buf, 10, height - 18, width - 10, height - 18)
@@ -79,9 +69,10 @@ appList = [
     tester.testerApp,
     terminal.app,
 ]
-mainApplications = {app.name: app for app in appList} #Access by name. This is the preferred method
+mainApplications = {app.name: app for app in appList} #Access by name. This is the preferred method for app launching
 launcher = mainApplications['launcher'] #Home option in main menu goes to this
 
+#Control system variables/data init
 application = launcher #Start with launcher
 mainVariables = {
     'mainMenuOpened': False
@@ -97,6 +88,8 @@ osData = {
     'modules': modules
 }
 mainMenu = ui.Menu(["Home"])
+inputs = [0, 0, 0, 0]
+
 def handleMain(inputs):
     #These need to be global, are modified from functions they're called in
     global application
@@ -105,7 +98,7 @@ def handleMain(inputs):
     
     #emuInputs allows the control program to inject inputs into applications
     emuInputs = inputs
-    if(inputs[3] == 1):
+    if(inputs[3] == 1 and not osData['flags']['noDraw']):
         mainVariables['mainMenuOpened'] = not mainVariables['mainMenuOpened']
 
     if(mainVariables['mainMenuOpened']):
@@ -120,25 +113,23 @@ def handleMain(inputs):
             if(val == 0):
                 application.kill(application)
                 application = launcher
-                application.run(buf, [0, 0, 0, 0], application, osData)
+                application.run(buf, emuInputs, application, osData)
             else:
                 application.menuOptions[mainMenu.get_selected_option()](application)
                 application.run(buf, emuInputs, application, osData)
     else:
         ret = application.run(buf, inputs, application, osData)
-        if(ret is not True): #Make this a command if its not true, instead of a code to assume application switching
+        if(ret is not True):
             handleCommand(ret)
-
 
     #Main menu overrides
     mainMenu.options = ["Home"]
     mainMenu.options.extend(application.menuOptions)
 
-    #After application is ran/drawn (or not), we render the main menu, controls ui, and finally commit the final buffer to the screen
-    if(mainVariables['mainMenuOpened']):
-        mainMenu.draw(buf, (width // 3), 0, width, height, size=1)
-
+    #If application isn't taking over drawing, we draw our main menu, controls, and then commit te final buffer to the screen
     if not osData["flags"]["noDraw"]:
+        if(mainVariables['mainMenuOpened']):
+            mainMenu.draw(buf, (width // 3), 0, width, height, size=1)
         drawControls()
         modules.epdDraw(buf.buf)
 
@@ -170,13 +161,15 @@ callbacks = {
 input = modules.Input({1: modules.btn1, 2: modules.btn2, 3: modules.btn3, 4: modules.btn4})
 input.on_button_press(callbacks)
 
+
+#Keyboard support
 def set_keyboard_flag():
-    if(osData["flags"]["keyboard"] != True):
+    if(osData["flags"]["keyboard"] != True): #The running application must at least acknowledge this change by setting this to false after it runs. Refer to the Keyboard section of the documentation
         osData["flags"]["keyboard"] = True
         handleMain(inputs)
 
 import keyboard
-keyboard_timer = modules.Timer(1, set_keyboard_flag) #Unused for now, waiting on bugfix
+keyboard_timer = modules.Timer(1, set_keyboard_flag) #Unused for now, waiting on bugfix (TODO link bugfix lol)
 def handle_keyboard_press(key):
     global osData
     global keyboard_timer
@@ -203,15 +196,15 @@ def handle_keyboard_press(key):
     else:
         osData["keyboardQueue"].append(key.name)
     set_keyboard_flag()
-    
 def handle_key_release(key):
     global osData
     if(key.name == 'shift'):
         osData["flags"]["shift"] = False
-        return
     if(key.name == 'backspace'):
         osData["flags"]["backspace"] = False
-        return
+
+    if(key.name == 'ctrl'):
+        set_keyboard_flag() #Temp to force update with no new characters until, again, previous bugfix
     
 keyboard.on_press(handle_keyboard_press)
 keyboard.on_release(handle_key_release)

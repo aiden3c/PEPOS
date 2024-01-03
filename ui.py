@@ -1,8 +1,6 @@
 import fonts
 import math
 
-from oslib import Buffer
-
 class Menu:
     def __init__(self, options):
         self.selection = 0

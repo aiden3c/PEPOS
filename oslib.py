@@ -16,4 +16,7 @@ class Buffer:
     def __init__(self, width, height, data = 0xFF):
         self.width = width
         self.height = height
-        self.buf = [data] * (int(width + 7/8) * height)
+        self.buf = [data] * (int(width/8) * height)
+
+def nop(*_):
+    return True
