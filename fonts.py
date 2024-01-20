@@ -1,26 +1,4 @@
-def load_bitmap(path, width, height, inv = False):
-    ret = []
-    with open(path, 'rb') as file:
-        file.seek(10)
-        data_offset = int.from_bytes(file.read(4), 'little')
-        file.seek(data_offset)
-
-        bitmap_data = file.read()
-        for y in range(height):
-            line = []
-            for x in range(width):
-                pos = y * width + x
-                pixel = bitmap_data[pos // 8] & (0b10000000 >> (pos % 8))
-                line.append(pixel)
-            ret.extend(line[::-1])
-        ret = ret[::-1]
-        realret = []
-        for i in range(len(ret)):
-            if inv:
-                realret.append(0 if ret[i] else 1)
-            else:
-                realret.append(1 if ret[i] else 0)
-        return realret
+from oslib import load_bitmap
     
 def load_font(bitmap_data, width, char_width, char_height, x_padding=0, y_padding=0):
     font = {}

@@ -47,15 +47,10 @@ qotb = questions[randint(0, len(questions) - 1)]
 
 #Display init
 epd = epd2in7_V2.EPD()
+print("Initializing display...")
 epd.init()
+print("Display initialized.")
 epd.Clear()
-
-#Input
-from gpiozero import Button
-btn1 = Button(5)
-btn2 = Button(6)
-btn3 = Button(13)
-btn4 = Button(19)
 
 def epdDrawFresh(data):
     global fast_count
@@ -69,13 +64,16 @@ fast_count = 6
 def epdDraw(data):
     global fast_count
     if fast_count < 6:
-        epd.init_Fast()
+        print("Fast draw")
         epd.display_Fast(data)
         fast_count += 1
     else:
+        print("Full draw")
         epd.init()
         epd.display(data)
         fast_count = 0
+        epd.init_Fast()
+    print("Drawn")
 
 def epdInitPartial(buf):
     epd.display_Base(buf.buf)

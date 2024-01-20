@@ -80,9 +80,27 @@ def draw_pixel(buf, x, y, fill=0):
             buf.buf[int((x + y * buf.width) / 8)] &= ~(0x80 >> (x % 8))
 
 def draw_rectangle(buf, x1, y1, x2, y2, fill=0):
-    for x in range(x1, x2):
-        for y in range(y1, y2):
-            draw_pixel(buf, x, y, fill)
+    if x1 < 0:
+        x1 = 0
+    if y1 < 0:
+        y1 = 0
+    if x2 > buf.width:
+        x2 = buf.width
+    if y2 > buf.height:
+        y2 = buf.height
+
+    start_byte = x1 // 8
+    end_byte = (x2 + 7) // 8
+    fill_byte = 0xFF if fill else 0x00
+
+    for y in range(y1, y2):
+        start_index = start_byte + y * (buf.width // 8)
+        end_index = end_byte + y * (buf.width // 8)
+        if fill:
+            buf.buf[start_index:end_index] = [fill_byte] * (end_index - start_index)
+        else:
+            for i in range(start_index, end_index):
+                buf.buf[i] &= fill_byte
 
 def draw_char(buf, x, y, char, size=1.0, fill=0):
     # Get the bitmap for the character
