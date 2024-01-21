@@ -51,6 +51,7 @@ class Book:
         self.epub = epub
         
 books = [ 
+    Book("North Woods", epub.read_epub("northwoods.epub")),
     Book("A Brief History Of Time", epub.read_epub("bhot.epub")),
     Book("Project Management", epub.read_epub("pm.epub")),
     Book("365 Days with Self-Discipline", epub.read_epub("selfhelp.epub")),

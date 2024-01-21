@@ -26,6 +26,7 @@ print("Bios commit")
 modules.epdDraw(buf.buf)
 try:
     import applications.apps as apps
+    sys.modules['apps'] = apps
     import applications.tester as tester
     import applications.terminal as terminal
 except ImportError:
@@ -184,7 +185,7 @@ while True:
     last[1] = btn2.value()
     last[2] = btn3.value()
     last[3] = btn4.value()
-    time.sleep(0.05)
+    time.sleep(0.10) #Make this a setting, more sleep means less power. 0.10 is about 2.6-3.3%
 
 if (False):
     #Keyboard support
