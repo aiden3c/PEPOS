@@ -8,6 +8,13 @@ if os.path.exists(libdir):
     sys.path.append(libdir)
 from waveshare_epd import epd2in7_V2
 from random import randint
+from oslib import BufferUpdate, Buffer
+
+class Display:
+    def __init__(self, epd, mode):
+        self.epd = epd
+        self.mode = mode
+        
 
 messages = [
     "You are appreciated!",
@@ -45,12 +52,9 @@ questions = [
 motb = messages[randint(0, len(messages) - 1)]
 qotb = questions[randint(0, len(questions) - 1)]
 
-#Display init
 epd = epd2in7_V2.EPD()
-print("Initializing display...")
+print("Starting display...           ", end="\r")
 epd.init()
-print("Display initialized.")
-epd.Clear()
 
 def epdDrawFresh(data):
     global fast_count
@@ -60,41 +64,45 @@ def epdDrawFresh(data):
     fast_count = 0
     partial_count = 0
 
+epdState = "fast"
 fast_count = 6
-def epdDraw(data):
+partial_count = 0
+partial_count_limit = 8
+def epdDraw(data, fix=False):
     global fast_count
+    global epdState
+    if epdState != "fast" and epdState != "slow":
+        if fast_count < 6:
+            epd.init_Fast()
+            epdState = "fast"
+
     if fast_count < 6:
-        print("Fast draw")
         epd.display_Fast(data)
         fast_count += 1
     else:
-        print("Full draw")
         epd.init()
         epd.display(data)
         fast_count = 0
         epd.init_Fast()
-    print("Drawn")
 
-def epdInitPartial(buf):
+def epdInitPartial(buf: Buffer):
+    global epdState
+    epdState = "partial"
+    buf.resetUpdate()
     epd.display_Base(buf.buf)
 
-partial_count = 0
-partial_count_limit = 8
-def epdDrawPartial(startBuf, update, startx, starty, endx, endy):
+def epdDrawPartial(startBuf: Buffer, startx: int, starty: int, endx: int, endy: int):
     global partial_count
-    buf = startBuf
-    for y in range(starty, endy):
-        for x in range(startx, endx):
-            buf_value = (update.buf[int(((x-startx) + (y-starty) * update.width) / 8)] >> (7 - (x-startx) % 8)) & 1
-            if buf_value:
-                buf.buf[int((x + y * buf.width) / 8)] |= (0x80 >> (x % 8))
-            else:
-                buf.buf[int((x + y * buf.width) / 8)] &= ~(0x80 >> (x % 8))
+    global epdState
+    if(epdState != "partial"):
+        epdInitPartial(startBuf)
+        epdState = "partial"
     if partial_count == partial_count_limit:
         epdDrawFresh(startBuf.buf)
         return partial_count_limit
     partial_count += 1
-    epd.display_Partial(buf.buf, startx, starty, endx, endy)
+    epd.display_Partial(startBuf.buf, startx, starty, endx, endy)
+    startBuf.resetUpdate()
     return partial_count_limit - partial_count
 
 class Display:

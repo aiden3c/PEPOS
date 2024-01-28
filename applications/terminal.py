@@ -18,7 +18,6 @@ def save_settings(filename, data):
         pickle.dump(data, f)
 
 def init(buf, app, osData):
-    print("running init")
     ui.draw_rectangle(buf, 0, 0, buf.width, buf.height, fill=255)
     app.variables["text_buffer"] = Buffer(buf.width, 10) #One line 10 tall to account for padding
     app.variables["cursor"] = (1, 1)
@@ -50,7 +49,6 @@ def main(buf, inputs, app, osData):
         remaining = osData["modules"].epdDrawPartial(buf, app.variables["text_buffer"], 0, 0, app.variables["text_buffer"].width, app.variables["text_buffer"].height)
         app.variables["lastUpdate"] = time.time()
         if remaining == 0:
-            #copy our text buffer to the main buffer
             for x in range(app.variables["text_buffer"].width):
                 for y in range(app.variables["text_buffer"].height):
                     buf.buf[x + y * buf.width] = app.variables["text_buffer"].buf[x + y * app.variables["text_buffer"].width]

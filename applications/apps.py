@@ -1,9 +1,9 @@
 import ui
 import re
-from ebooklib import epub, ITEM_DOCUMENT
 from html.parser import HTMLParser
 import os
 import pickle
+from oslib import Buffer, BufferUpdate
 
 def load_settings(filename):
     filepath = os.path.join('config', filename)
@@ -49,13 +49,6 @@ class Book:
     def __init__(self, name, epub):
         self.name = name
         self.epub = epub
-        
-books = [ 
-    Book("North Woods", epub.read_epub("northwoods.epub")),
-    Book("A Brief History Of Time", epub.read_epub("bhot.epub")),
-    Book("Project Management", epub.read_epub("pm.epub")),
-    Book("365 Days with Self-Discipline", epub.read_epub("selfhelp.epub")),
-]
 
 from oslib import Application, Command, nop
 
@@ -116,7 +109,7 @@ def handleReader(buf, inputs, app, osData):
                 links.pop(0)
                 app.variables["contentsMenu"] = ui.Menu(links)
             else:
-                items = list(book.get_items_of_type(ITEM_DOCUMENT))
+                items = list(book.get_items_of_type(app.variables["ITEM_DOCUMENT"]))
                 app.variables["content"] = ui.fix_unicode(str(items[1].get_content()))
                 bookSettings = load_settings(app.variables["book"].title + ".pickle")
                 if bookSettings is not None:
@@ -141,9 +134,9 @@ def handleReader(buf, inputs, app, osData):
             if(app.variables["page"] == 0):
                 app.variables["page"] = 1
                 app.variables["document"] -= 1
-                app.variables["content"] = str(list(app.variables["book"].get_items_of_type(ITEM_DOCUMENT))[app.variables["document"]].get_content())
+                app.variables["content"] = str(list(app.variables["book"].get_items_of_type(app.variables["ITEM_DOCUMENT"]))[app.variables["document"]].get_content())
 
-        content = str(list(app.variables["book"].get_items_of_type(ITEM_DOCUMENT))[app.variables["document"]].get_content())
+        content = str(list(app.variables["book"].get_items_of_type(app.variables["ITEM_DOCUMENT"]))[app.variables["document"]].get_content())
         parser = MyHTMLParser()
         parser.feed(content)
         paragraphs = ui.fix_unicode("\n".join(parser.paragraphs))
@@ -158,7 +151,7 @@ def handleReader(buf, inputs, app, osData):
             if(app.variables["page"] > app.variables["pageTotal"]):
                 app.variables["page"] = 1
                 app.variables["document"] += 1
-                app.variables["content"] = str(list(app.variables["book"].get_items_of_type(ITEM_DOCUMENT))[app.variables["document"]].get_content())
+                app.variables["content"] = str(list(app.variables["book"].get_items_of_type(app.variables["ITEM_DOCUMENT"]))[app.variables["document"]].get_content())
                 app.variables["cachedLines"] = []
 
         drawStats(buf, app.variables["book"], app.variables["document"], app.variables["page"])
@@ -180,18 +173,35 @@ def loadBookmark(app):
     bookmark = bookSettings.bookmarks[-1]
     app.variables["document"] = bookmark.document
     app.variables["page"] = bookmark.page
-    app.variables["content"] = str(list(app.variables["book"].get_items_of_type(ITEM_DOCUMENT))[bookmark.document].get_content())
+    app.variables["content"] = str(list(app.variables["book"].get_items_of_type(app.variables["ITEM_DOCUMENT"]))[bookmark.document].get_content())
 
 def startDocument(app):
     app.variables["document"] = 0
     app.variables["page"] = 1
-    app.variables["content"] = str(list(app.variables["book"].get_items_of_type(ITEM_DOCUMENT))[0].get_content())
+    app.variables["content"] = str(list(app.variables["book"].get_items_of_type(app.variables["ITEM_DOCUMENT"]))[0].get_content())
 
 def nextDocument(app):
     app.variables["document"] += 1
     app.variables["page"] = 1
-    app.variables["content"] = str(list(app.variables["book"].get_items_of_type(ITEM_DOCUMENT))[app.variables["document"]].get_content())
+    app.variables["content"] = str(list(app.variables["book"].get_items_of_type(app.variables["ITEM_DOCUMENT"]))[app.variables["document"]].get_content())
 
-launcher = Application("launcher", nop, drawHome, nop, {"menu": ui.Menu(["Terminal", "Reader", "Tools"])})
-reader = Application("reader", nop, handleReader, killReader, {"menu": ui.Menu([book.name for book in books]), "readerState": "browse", "book": None, "content": None, "page": 1, "pageTotal": 1, "document": 0, "cachedLines": []}, {"Next Document": nextDocument, "To Start": startDocument, "Create Bookmark": createBookmark, "Load Bookmark": loadBookmark})
+books = []
+def readerInit(buf, app, osData):
+    global books
+    from ebooklib import epub, ITEM_DOCUMENT
+    books = [ 
+    Book("North Woods", epub.read_epub("northwoods.epub")),
+    Book("A Brief History Of Time", epub.read_epub("bhot.epub")),
+    Book("Project Management", epub.read_epub("pm.epub")),
+    Book("365 Days with Self-Discipline", epub.read_epub("selfhelp.epub")),
+    ]
+    app.variables["menu"] = ui.Menu([book.name for book in books])
+    app.variables["ITEM_DOCUMENT"] = ITEM_DOCUMENT
+    return True
+
+def homeInit(buf: Buffer, app, osData):
+    return True
+
+launcher = Application("launcher", nop, drawHome, nop, {"menu": ui.Menu(["DrawTest", "Reader", "Tools"])})
+reader = Application("reader", readerInit, handleReader, killReader, {"readerState": "browse", "book": None, "content": None, "page": 1, "pageTotal": 1, "document": 0, "cachedLines": []}, {"Next Document": nextDocument, "To Start": startDocument, "Create Bookmark": createBookmark, "Load Bookmark": loadBookmark})
 tools = Application("tools", nop, drawTools, nop, {"cursor": [0, 0]})

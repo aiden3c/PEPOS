@@ -1,10 +1,12 @@
+from typing import Callable
+
 class Command:
-    def __init__(self, name, *arguments):
+    def __init__(self, name: str, *arguments):
         self.name = name
         self.arguments = arguments
 
 class Application:
-    def __init__(self, name, init, run, kill, variables, menuOptions={}):
+    def __init__(self, name: str, init: Callable, run: Callable, kill: Callable, variables: dict, menuOptions={}):
         self.name = name
         self.init = init
         self.run = run
@@ -12,17 +14,42 @@ class Application:
         self.variables = variables
         self.menuOptions = menuOptions
 
+class OSSetting:
+    def __init__(self, name: str, value):
+        self.name = name
+        self.value = value
+
+class BufferUpdate:
+    def __init__(self, x: int, y: int, x2: int, y2: int):
+        self.x = x
+        self.y = y
+        self.x2 = x2
+        self.y2 = y2
+
 class Buffer:
-    def __init__(self, width, height, data = 0xFF):
+    def __init__(self, width: int, height: int, data: int = 0xFF):
         self.width = width
         self.height = height
         self.buf = [data] * (int(width/8) * height)
+        self.update = BufferUpdate(width, height, 0, 0) #Inverted buffer update, means first draw will actually make proper buf
+    
+    def resetUpdate(self):
+        self.update = BufferUpdate(self.width, self.height, 0, 0)
 
 class Buffer2Bit:
-    def __init__(self, width, height, data = 0xFF):
+    def __init__(self, width: int, height: int, data = 0xFF):
         self.width = width
         self.height = height
         self.buf = [data] * (int(width/4) * height)
+
+#This assumes you are updating within (0,0) to (buf.width, buf.height). Could cause damage otherwise!
+def buffer_update_merge(buf: Buffer, update: BufferUpdate):
+    source = buf.update
+    #Create the rectangle that encapsulates the entire updated area
+    source.x = min(source.x, update.x)
+    source.y = min(source.y, update.y)
+    source.x2 = max(source.x2, update.x2)
+    source.y2 = max(source.y2, update.y2)
 
 def nop(*_):
     return True
@@ -57,4 +84,4 @@ white = 0xFF
 gray1 = 0xC0
 gray2 = 0x80
 black = 0x00
-
+transparent = 0xBF

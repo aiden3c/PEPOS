@@ -1,14 +1,15 @@
 #!/usr/bin/python
+print("Booting PEPOS...")
 import sys
 import os
+print("Importing driver...", end="\r")
 picdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'pic')
 libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'lib')
 if os.path.exists(libdir):
     sys.path.append(libdir)
 from signal import pause
 import modules
-
-from oslib import Buffer, Command, Application
+from oslib import Buffer, Command, Application, OSSetting
 
 width = modules.epd.width
 height = modules.epd.height
@@ -17,27 +18,25 @@ buf = Buffer(width, height)
 import ui
 message = modules.motb+"\n\n"+modules.qotb
 message_height = (len(ui.draw_page(buf, message, 1, 0, 0, noRender=True, returnLines=True)[1])) * 12
-print("Bios write")
 ui.draw_page(buf, message, 1, 0, 0, yoffset=buf.height-message_height, ignoreControls=True)
 ui.draw_text(buf, 0, 0, "Loaded hardware interface.")
 ui.draw_text(buf, 0, 10, "Initializing display: Done")
 ui.draw_text(buf, 0, 20, "Loading applications:")
-print("Bios commit")
-modules.epdDraw(buf.buf)
+print("EPD tradeoff. See you later!")
+modules.epdInitPartial(buf)
 try:
     import applications.apps as apps
     sys.modules['apps'] = apps
     import applications.tester as tester
     import applications.terminal as terminal
+    import applications.newdrawtest as drawtest
 except ImportError:
-    ui.draw_text(buf, ui.text_bounds("Loading applications: ")[0], 20, "Failed")
-    modules.epdDraw(buf.buf)
-    ui.draw_text(buf, 0, 35, "This is where we'll load safe mode.")
+    ui.draw_text(buf, 0, 20, "Loading applications: Fail")
+    ui.draw_text(buf, 0, 35, "Starting safe mode...")
     exit()
-ui.draw_text(buf, ui.text_bounds("Loading applications: ")[0], 20, "Done")
+ui.draw_text(buf, 0, 20, "Loading applications: Done")
 ui.draw_text(buf, 0, 35, "Starting control system...")
-modules.epdDraw(buf.buf)
-
+modules.epd.display_Partial(buf.buf, buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
 def handleCommand(command):
     global buf
     global application
@@ -78,12 +77,16 @@ appList = [
     apps.tools,
     tester.testerApp,
     terminal.app,
+    drawtest.app
 ]
 mainApplications = {app.name: app for app in appList} #Access by name. This is the preferred method for app launching
 launcher = mainApplications['launcher'] #Home option in main menu goes to this
 
 #Control system variables/data init
 application = launcher #Start with launcher
+osSettings = {setting.name: setting for setting in [
+    OSSetting("inputDelay", .1)
+]}
 mainVariables = {
     'mainMenuOpened': False
 }
@@ -129,6 +132,7 @@ def handleMain(inputs):
                 application.run(buf, emuInputs, application, osData)
     else:
         ret = application.run(buf, inputs, application, osData)
+        print(buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
         if(ret is not True):
             handleCommand(ret)
 
@@ -139,9 +143,18 @@ def handleMain(inputs):
     #If application isn't taking over drawing, we draw our main menu, controls, and then commit te final buffer to the screen
     if not osData["flags"]["noDraw"]:
         if(mainVariables['mainMenuOpened']):
-            mainMenu.draw(buf, (width // 3), 0, width, height, size=1)
-        drawControls()
-        modules.epdDraw(buf.buf)
+            buf.resetUpdate()
+            mainMenu.draw(buf, (width // 3), 0, width, len(mainMenu.options)*16, size=1)
+        if ((buf.update.x2 - buf.update.x) * (buf.update.y2 - buf.update.y)) / (buf.width * buf.height) > 0.55: #If we're updating over 50% of the screen, just do a normal draw
+            drawControls()
+            modules.epdDraw(buf.buf, True)
+        else:
+            remaining = modules.epdDrawPartial(buf, buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
+            print(f"{remaining} fast calls left")
+            if remaining == 0:
+                drawControls()
+                osData["modules"].epdInitPartial(buf)
+
 
 #One main call per input
 def input_pressed():
@@ -185,7 +198,7 @@ while True:
     last[1] = btn2.value()
     last[2] = btn3.value()
     last[3] = btn4.value()
-    time.sleep(0.10) #Make this a setting, more sleep means less power. 0.10 is about 2.6-3.3%
+    time.sleep(osSettings['inputDelay'].value) #Make this a setting, more sleep means less power. 0.10 is about 2.6-3.3%
 
 if (False):
     #Keyboard support
@@ -234,7 +247,6 @@ if (False):
         
     keyboard.on_press(handle_keyboard_press)
     keyboard.on_release(handle_key_release)
-
 
 handleMain(inputs)
 pause()

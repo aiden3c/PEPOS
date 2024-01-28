@@ -1,23 +1,27 @@
 import fonts
 import math
 
+from oslib import Buffer, BufferUpdate, buffer_update_merge
+
 class Menu:
-    def __init__(self, options):
+    def __init__(self, options: list[str]):
         self.selection = 0
         self.options = options
 
     def select_next(self):
         self.selection = (self.selection + 1) % len(self.options)
+        print(self.selection)
         return self.selection
 
     def select_previous(self):
         self.selection = (self.selection - 1) % len(self.options)
+        print(self.selection)
         return self.selection
 
     def get_selected_option(self):
         return self.options[self.selection]
     
-    def draw(self, buf, x=0, y=0, x2=0, y2=0, size = 1.5):
+    def draw(self, buf: Buffer, x: int = 0, y: int = 0, x2: int = 0, y2: int = 0, size: int = 1.5):
         line_height = int(8 * size + 8)
         text_y_offset = line_height / 4
         text_x_offset = 4
@@ -46,7 +50,7 @@ class Menu:
                 draw_text(buf, x + text_x_offset, (y + option_offset) + (i * line_height) + text_y_offset, item, size, fill=0)
             
 
-def draw_line(buf, x1, y1, x2, y2):
+def draw_line(buf: Buffer, x1: int, y1: int, x2: int, y2: int):
     dx = abs(x2 - x1)
     dy = abs(y2 - y1)
     sx = 1 if x1 < x2 else -1
@@ -72,14 +76,17 @@ def draw_line(buf, x1, y1, x2, y2):
 # Define the font as a dictionary of bitmaps
 font = fonts.base
 
-def draw_pixel(buf, x, y, fill=0):
+def draw_pixel(buf: Buffer, x: int, y: int, fill: bool = False):
     if 0 <= x < buf.width and 0 <= y < buf.height:
         if fill:
             buf.buf[int((x + y * buf.width) / 8)] |= (0x80 >> (x % 8))
         else:
             buf.buf[int((x + y * buf.width) / 8)] &= ~(0x80 >> (x % 8))
 
-def draw_rectangle(buf, x1, y1, x2, y2, fill=0):
+        update = BufferUpdate(x, y, x, y)
+        buffer_update_merge(buf, update)
+
+def draw_rectangle(buf: Buffer, x1: int, y1: int, x2: int, y2: int, fill: bool = False):
     if x1 < 0:
         x1 = 0
     if y1 < 0:
@@ -93,6 +100,9 @@ def draw_rectangle(buf, x1, y1, x2, y2, fill=0):
     end_byte = (x2 + 7) // 8
     fill_byte = 0xFF if fill else 0x00
 
+    update = BufferUpdate(x1, y1, x2, y2)
+    buffer_update_merge(buf, update)
+
     for y in range(y1, y2):
         start_index = start_byte + y * (buf.width // 8)
         end_index = end_byte + y * (buf.width // 8)
@@ -102,7 +112,9 @@ def draw_rectangle(buf, x1, y1, x2, y2, fill=0):
             for i in range(start_index, end_index):
                 buf.buf[i] &= fill_byte
 
-def draw_char(buf, x, y, char, size=1.0, fill=0):
+def draw_char(buf: Buffer, x: int, y: int, char: str, size: int = 1.0, fill: bool = False):
+    buffer_update_merge(buf, BufferUpdate(x, y, x + 6 * size, y + 8 * size))
+
     # Get the bitmap for the character
     bitmap = font.get(ord(char))
     if bitmap is None:
@@ -114,7 +126,7 @@ def draw_char(buf, x, y, char, size=1.0, fill=0):
                     for dx in range(math.ceil(size)):
                         draw_pixel(buf, x + math.floor(j*size) + dx, y + math.floor(i*size) + dy, fill)
 
-def text_bounds(text, size=1):
+def text_bounds(text: str, size: int = 1):
     char_width = 6
     char_height = 8
 
@@ -123,7 +135,7 @@ def text_bounds(text, size=1):
 
     return text_width, text_height
 
-def fix_unicode(text):
+def fix_unicode(text: str):
     text = text.replace('\\xe2\\x80\\x99', "'")
     text = text.replace('\\xe2\\x80\\x98', '"')
     text = text.replace('\\xe2\\x80\\x9c', '"')
@@ -137,11 +149,12 @@ def fix_unicode(text):
     text = text.replace('\\n', "\n")
     return text
 
-def draw_text(buf, x, y, text, size=1, fill=0):
+def draw_text(buf: Buffer, x: int, y: int, text: str, size: int = 1, fill: int = 0):
     for i, char in enumerate(text):
         draw_char(buf, x + math.floor(i*6*size), y, char, size, fill)
 
-def draw_page(buf, text, size, fill, subindex, noRender = False, returnLines = False, ignoreControls=False, yoffset = 0, cachedLines = False):
+#This function does a lot, it really should be separated out into multiple functions so we dont call it for a bunch of jank shit
+def draw_page(buf: Buffer, text: str, size: int, fill: bool, subindex: int, noRender: bool = False, returnLines: bool = False, ignoreControls: bool = False, yoffset: int = 0, cachedLines: bool = False):
     draw_rectangle(buf, 0, yoffset, buf.width, buf.height, fill=255)
     max_chars_per_line = int(buf.width // (6 * size))
 
