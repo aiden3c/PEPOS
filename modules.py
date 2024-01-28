@@ -7,14 +7,17 @@ libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__)
 if os.path.exists(libdir):
     sys.path.append(libdir)
 from waveshare_epd import epd2in7_V2
-from random import randint
+from random import choice 
 from oslib import BufferUpdate, Buffer
 
 class Display:
-    def __init__(self, epd, mode):
+    def __init__(self, epd):
         self.epd = epd
-        self.mode = mode
-        
+        self.mode = "fast" #slow, fast, partial / slow is unused tho...
+        self.fast_count_limit = 6
+        self.fast_count = self.fast_count_limit
+        self.partial_count = 0
+        self.partial_count_limit = 8
 
 messages = [
     "You are appreciated!",
@@ -27,8 +30,6 @@ messages = [
     "Remember to write!",
     "Good morning, day, evening, or night!"
 ]
-
-#qotb question of the boot. short questions to get you thinking
 questions = [
     "What are you thankful for?",
     "What are you looking forward to?",
@@ -49,66 +50,46 @@ questions = [
     "What are you reading?",
     "What are you creating?"
 ]
-motb = messages[randint(0, len(messages) - 1)]
-qotb = questions[randint(0, len(questions) - 1)]
+motb = choice(messages)
+qotb = choice(questions)
 
-epd = epd2in7_V2.EPD()
+display = Display(epd2in7_V2.EPD())
 print("Starting display...           ", end="\r")
-epd.init()
+display.epd.init()
 
-def epdDrawFresh(data):
-    global fast_count
-    global partial_count
-    epd.init()
-    epd.display(data)
-    fast_count = 0
-    partial_count = 0
+def epdDraw(hardware: Display, buffer: Buffer):
+    if hardware.mode == "partial": #Safety
+        if hardware.fast_count < 6:
+            hardware.epd.init_Fast()
+            hardware.mode = "fast"
 
-epdState = "fast"
-fast_count = 6
-partial_count = 0
-partial_count_limit = 8
-def epdDraw(data, fix=False):
-    global fast_count
-    global epdState
-    if epdState != "fast" and epdState != "slow":
-        if fast_count < 6:
-            epd.init_Fast()
-            epdState = "fast"
-
-    if fast_count < 6:
-        epd.display_Fast(data)
-        fast_count += 1
+    if hardware.fast_count < 6:
+        hardware.epd.display_Fast(buffer.buf)
+        hardware.fast_count += 1
     else:
-        epd.init()
-        epd.display(data)
-        fast_count = 0
-        epd.init_Fast()
+        hardware.epd.init()
+        hardware.epd.display(buffer.buf) #A slow, safe update
+        hardware.fast_count = 0
+        hardware.epd.init_Fast()
+    buffer.resetUpdate()
 
-def epdInitPartial(buf: Buffer):
-    global epdState
-    epdState = "partial"
-    buf.resetUpdate()
-    epd.display_Base(buf.buf)
+def epdInitPartial(hardware: Display, buffer: Buffer):
+    hardware.mode = "partial"
+    buffer.resetUpdate()
+    hardware.epd.display_Base(buffer.buf)
 
-def epdDrawPartial(startBuf: Buffer, startx: int, starty: int, endx: int, endy: int):
-    global partial_count
-    global epdState
-    if(epdState != "partial"):
-        epdInitPartial(startBuf)
-        epdState = "partial"
-    if partial_count == partial_count_limit:
-        epdDrawFresh(startBuf.buf)
-        return partial_count_limit
-    partial_count += 1
-    epd.display_Partial(startBuf.buf, startx, starty, endx, endy)
-    startBuf.resetUpdate()
-    return partial_count_limit - partial_count
-
-class Display:
-    #Refresh entire screen, determining whether it should be a fast draw or not
-    def draw(self, data):
-        epdDraw(data)
+def epdDrawPartial(hardware: Display, buffer: Buffer, startx: int, starty: int, endx: int, endy: int):
+    if(hardware.mode != "partial"):
+        epdInitPartial(hardware, buffer)
+    if hardware.partial_count == hardware.partial_count_limit: #Refresh n reset our partial for safety
+        epdDraw(hardware, buffer)
+        epdInitPartial(hardware, buffer)
+        hardware.partial_count = 0
+        return hardware.partial_count_limit
+    hardware.partial_count += 1
+    hardware.epd.display_Partial(buffer.buf, startx, starty, endx, endy)
+    buffer.resetUpdate()
+    return hardware.partial_count_limit - hardware.partial_count
 
 class Input:
     def __init__(self, buttons):
@@ -117,26 +98,3 @@ class Input:
     def on_button_press(self, callbacks):
         for button_number, callback in callbacks.items():
             self.buttons[button_number].when_pressed = callback
-
-#Move this to oslib after /the/ bug fix
-import threading
-class Timer:
-    def __init__(self, time, callback, repeat = False):
-        self.callback = callback
-        self.repeat = repeat
-        self.timer = threading.Timer(time, self.run_callback)
-
-    def run_callback(self):
-        self.callback()
-        if self.repeat:
-            self.timer.start()
-        else:
-            self.stop()
-
-    def start(self):
-        self.timer.cancel()
-        self.timer.start()
-        
-    def stop(self):
-        self.timer.cancel()
-    

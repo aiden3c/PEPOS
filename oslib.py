@@ -42,6 +42,28 @@ class Buffer2Bit:
         self.height = height
         self.buf = [data] * (int(width/4) * height)
 
+import threading
+class Timer:
+    def __init__(self, time, callback, repeat = False):
+        self.callback = callback
+        self.repeat = repeat
+        self.timer = threading.Timer(time, self.run_callback)
+
+    def run_callback(self):
+        self.callback()
+        if self.repeat:
+            self.timer.start()
+        else:
+            self.stop()
+
+    def start(self):
+        self.timer.cancel()
+        self.timer.start()
+        
+    def stop(self):
+        self.timer.cancel()
+
+#All UI functions should conform. TODO verify
 #This assumes you are updating within (0,0) to (buf.width, buf.height). Could cause damage otherwise!
 def buffer_update_merge(buf: Buffer, update: BufferUpdate):
     source = buf.update

@@ -86,7 +86,7 @@ def draw_pixel(buf: Buffer, x: int, y: int, fill: bool = False):
         update = BufferUpdate(x, y, x, y)
         buffer_update_merge(buf, update)
 
-def draw_rectangle(buf: Buffer, x1: int, y1: int, x2: int, y2: int, fill: bool = False):
+def draw_rectangle(buf: Buffer, x1: int, y1: int, x2: int, y2: int, fill: int = 255):
     if x1 < 0:
         x1 = 0
     if y1 < 0:

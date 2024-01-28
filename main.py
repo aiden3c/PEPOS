@@ -1,4 +1,6 @@
 #!/usr/bin/python
+
+#BIOS START
 print("Booting PEPOS...")
 import sys
 import os
@@ -11,10 +13,11 @@ from signal import pause
 import modules
 from oslib import Buffer, Command, Application, OSSetting
 
-width = modules.epd.width
-height = modules.epd.height
+width = modules.display.epd.width
+height = modules.display.epd.height
 buf = Buffer(width, height)
 
+#Able to draw BIOS on hardware
 import ui
 message = modules.motb+"\n\n"+modules.qotb
 message_height = (len(ui.draw_page(buf, message, 1, 0, 0, noRender=True, returnLines=True)[1])) * 12
@@ -23,7 +26,7 @@ ui.draw_text(buf, 0, 0, "Loaded hardware interface.")
 ui.draw_text(buf, 0, 10, "Initializing display: Done")
 ui.draw_text(buf, 0, 20, "Loading applications:")
 print("EPD tradeoff. See you later!")
-modules.epdInitPartial(buf)
+modules.epdInitPartial(modules.display, buf)
 try:
     import applications.apps as apps
     sys.modules['apps'] = apps
@@ -36,8 +39,11 @@ except ImportError:
     exit()
 ui.draw_text(buf, 0, 20, "Loading applications: Done")
 ui.draw_text(buf, 0, 35, "Starting control system...")
-modules.epd.display_Partial(buf.buf, buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
+modules.display.epd.display_Partial(buf.buf, buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
+#BIOS done
+
 def handleCommand(command):
+    #The application context being global is important, I think the others can be passed through
     global buf
     global application
     global osData
@@ -95,10 +101,10 @@ osData = {
         'keyboard': False,
         'shift': False,
         'backspace': False,
-        'noDraw': False #Welcome to full hardware control, modules are your friend
+        'noDraw': False #Full drawing control, modules are your friend
     },
     'keyboardQueue': [],
-    'modules': modules
+    'modules': modules #For passthrough to applications
 }
 mainMenu = ui.Menu(["Home"])
 inputs = [0, 0, 0, 0]
@@ -132,11 +138,9 @@ def handleMain(inputs):
                 application.run(buf, emuInputs, application, osData)
     else:
         ret = application.run(buf, inputs, application, osData)
-        print(buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
         if(ret is not True):
             handleCommand(ret)
 
-    #Main menu overrides
     mainMenu.options = ["Home"]
     mainMenu.options.extend(application.menuOptions)
 
@@ -147,14 +151,10 @@ def handleMain(inputs):
             mainMenu.draw(buf, (width // 3), 0, width, len(mainMenu.options)*16, size=1)
         if ((buf.update.x2 - buf.update.x) * (buf.update.y2 - buf.update.y)) / (buf.width * buf.height) > 0.55: #If we're updating over 50% of the screen, just do a normal draw
             drawControls()
-            modules.epdDraw(buf.buf, True)
+            modules.epdDraw(modules.display, buf)
         else:
-            remaining = modules.epdDrawPartial(buf, buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
+            remaining = modules.epdDrawPartial(modules.display, buf, buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
             print(f"{remaining} fast calls left")
-            if remaining == 0:
-                drawControls()
-                osData["modules"].epdInitPartial(buf)
-
 
 #One main call per input
 def input_pressed():
@@ -184,6 +184,9 @@ _ = Pin(0, Pin.OUT) #Unused but fixes /sys/class/gpio. Blame pinpong, seriously
 
 import time
 last = [1, 1, 1, 1]
+
+ui.draw_rectangle(buf, 0, 0, buf.width, buf.height)
+modules.display.mode = "fast"
 handleMain(inputs)
 while True:
     if btn1.value() == 0 and last[0] == 1:
@@ -198,7 +201,7 @@ while True:
     last[1] = btn2.value()
     last[2] = btn3.value()
     last[3] = btn4.value()
-    time.sleep(osSettings['inputDelay'].value) #Make this a setting, more sleep means less power. 0.10 is about 2.6-3.3%
+    time.sleep(osSettings['inputDelay'].value) #More sleep means less power. 0.10 is about 2.6-3.3%
 
 if (False):
     #Keyboard support

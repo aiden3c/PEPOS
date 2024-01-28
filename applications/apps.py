@@ -71,11 +71,10 @@ def drawHome(buf, inputs, app, osData):
     if inputs[2] == 1:
         app.variables["menu"].select_next()
     if inputs[1] == 1:
-        global application
-        application = app.variables["menu"].options[app.variables["menu"].selection].lower()
-        return Command("launch", application)
+        newapp = app.variables["menu"].options[app.variables["menu"].selection].lower()
+        return Command("launch", newapp)
     else:
-        app.variables["menu"].draw(buf, 0, 0, buf.width, buf.height)
+        app.variables["menu"].draw(buf, 0, 0, buf.width, len(app.variables["menu"].options) * int(8 * 1.5 + 8))
     return True
 
 def killReader(app):
