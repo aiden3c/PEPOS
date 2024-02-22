@@ -198,9 +198,13 @@ def readerInit(buf, app, osData):
     app.variables["ITEM_DOCUMENT"] = ITEM_DOCUMENT
     return True
 
-def homeInit(buf: Buffer, app, osData):
+def homeInit(buf: Buffer, _, osData):
+    ui.draw_rectangle(buf, 0, 0, buf.width, buf.height)
+    osData['modules'].display.mode = "fast"
+    if not osData['booting']:
+        osData['modules'].epdDraw(osData['modules'].display, buf)
     return True
 
-launcher = Application("launcher", nop, drawHome, nop, {"menu": ui.Menu(["DrawTest", "Reader", "Tools"])})
+launcher = Application("launcher", homeInit, drawHome, nop, {"menu": ui.Menu(["DrawTest", "Reader", "Tools"])})
 reader = Application("reader", readerInit, handleReader, killReader, {"readerState": "browse", "book": None, "content": None, "page": 1, "pageTotal": 1, "document": 0, "cachedLines": []}, {"Next Document": nextDocument, "To Start": startDocument, "Create Bookmark": createBookmark, "Load Bookmark": loadBookmark})
 tools = Application("tools", nop, drawTools, nop, {"cursor": [0, 0]})

@@ -50,6 +50,11 @@ def handleCommand(command):
     ret = command
     if ret.name == "launch": # application name
         print(f"Launching {ret.arguments[0]}")
+        ui.draw_rectangle(buf, 8, (height // 2) - 16, width - 8, (height // 2) + 16, 0)
+        ui.draw_rectangle(buf, 10, (height // 2) - 14, width - 10, (height // 2) + 14)
+        text_size = ui.text_bounds(f"Starting {ret.arguments[0]}...")
+        ui.draw_text(buf, (width // 2) - (text_size[0] // 2), (height // 2) - (text_size[1] // 2), f"Starting {ret.arguments[0]}...")
+        modules.epdDrawAny(modules.display, buf)
         application.kill(application)
         application = mainApplications[ret.arguments[0]]
         initRet = application.init(buf, application, osData)
@@ -91,7 +96,8 @@ launcher = mainApplications['launcher'] #Home option in main menu goes to this
 #Control system variables/data init
 application = launcher #Start with launcher
 osSettings = {setting.name: setting for setting in [
-    OSSetting("inputDelay", .1)
+    OSSetting("inputDelay", .1),
+    OSSetting("statusLED", True)
 ]}
 mainVariables = {
     'mainMenuOpened': False
@@ -104,7 +110,8 @@ osData = {
         'noDraw': False #Full drawing control, modules are your friend
     },
     'keyboardQueue': [],
-    'modules': modules #For passthrough to applications
+    'modules': modules, #For passthrough to applications
+    'booting': True
 }
 mainMenu = ui.Menu(["Home"])
 inputs = [0, 0, 0, 0]
@@ -119,6 +126,13 @@ def handleMain(inputs):
     emuInputs = inputs
     if(inputs[3] == 1 and not osData['flags']['noDraw']):
         mainVariables['mainMenuOpened'] = not mainVariables['mainMenuOpened']
+        if(mainVariables['mainMenuOpened'] and modules.display.mode != "partial"):
+            if(osSettings['statusLED']):
+                led.value(1)
+            modules.epdInitPartial(modules.display, buf)
+            if(osSettings['statusLED']):
+                led.value(0)        
+
 
     if(mainVariables['mainMenuOpened']):
         emuInputs = [0, 0, 0, 0] #Dont pass inputs to application
@@ -132,10 +146,15 @@ def handleMain(inputs):
             if(val == 0):
                 application.kill(application)
                 application = launcher
-                application.run(buf, emuInputs, application, osData)
+                initRet = application.init(buf, application, osData)
+                if initRet != True:
+                    handleCommand(initRet)
             else:
                 application.menuOptions[mainMenu.get_selected_option()](application)
-                application.run(buf, emuInputs, application, osData)
+            ret = application.run(buf, emuInputs, application, osData)
+            if(ret is not True):
+                handleCommand(ret)
+
     else:
         ret = application.run(buf, inputs, application, osData)
         if(ret is not True):
@@ -146,15 +165,19 @@ def handleMain(inputs):
 
     #If application isn't taking over drawing, we draw our main menu, controls, and then commit te final buffer to the screen
     if not osData["flags"]["noDraw"]:
+        if(osSettings['statusLED']):
+            led.value(1)
         if(mainVariables['mainMenuOpened']):
             buf.resetUpdate()
             mainMenu.draw(buf, (width // 3), 0, width, len(mainMenu.options)*16, size=1)
-        if ((buf.update.x2 - buf.update.x) * (buf.update.y2 - buf.update.y)) / (buf.width * buf.height) > 0.55: #If we're updating over 50% of the screen, just do a normal draw
+        if modules.display.mode == "fast" or ((buf.update.x2 - buf.update.x) * (buf.update.y2 - buf.update.y)) / (buf.width * buf.height) > 0.55: #If we're updating over 50% of the screen, just do a normal draw
             drawControls()
             modules.epdDraw(modules.display, buf)
         else:
             remaining = modules.epdDrawPartial(modules.display, buf, buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
             print(f"{remaining} fast calls left")
+        if(osSettings['statusLED']):
+            led.value(0)
 
 #One main call per input
 def input_pressed():
@@ -181,12 +204,13 @@ btn3 = Pin(11, Pin.IN)
 btn2 = Pin(12, Pin.IN)
 btn1 = Pin(13, Pin.IN)
 _ = Pin(0, Pin.OUT) #Unused but fixes /sys/class/gpio. Blame pinpong, seriously
+led = Pin(25, Pin.OUT)
 
 import time
 last = [1, 1, 1, 1]
 
-ui.draw_rectangle(buf, 0, 0, buf.width, buf.height)
-modules.display.mode = "fast"
+application.init(buf, application, osData)
+osData['booting'] = False
 handleMain(inputs)
 while True:
     if btn1.value() == 0 and last[0] == 1:

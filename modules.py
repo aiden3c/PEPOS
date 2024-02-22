@@ -82,7 +82,7 @@ def epdDrawPartial(hardware: Display, buffer: Buffer, startx: int, starty: int, 
     if(hardware.mode != "partial"):
         epdInitPartial(hardware, buffer)
     if hardware.partial_count == hardware.partial_count_limit: #Refresh n reset our partial for safety
-        epdDraw(hardware, buffer)
+        epdDraw(hardware, buffer) #This is required unless you know exactly deformation of the hardware's internal buffer. weird stuff sadly. Possible but not doing now. TODO this some time
         epdInitPartial(hardware, buffer)
         hardware.partial_count = 0
         return hardware.partial_count_limit
@@ -90,6 +90,14 @@ def epdDrawPartial(hardware: Display, buffer: Buffer, startx: int, starty: int, 
     hardware.epd.display_Partial(buffer.buf, startx, starty, endx, endy)
     buffer.resetUpdate()
     return hardware.partial_count_limit - hardware.partial_count
+
+#Assuming that we're drawing something we're okay with partial updating in (small change)
+#Draws dependent on existing display mode
+def epdDrawAny(hardware: Display, buffer: Buffer):
+    if(hardware.mode == "fast"):
+        epdDraw(hardware, buffer)
+    else:
+        epdDrawPartial(hardware, buffer, buffer.update.x, buffer.update.y, buffer.update.x2, buffer.update.y2)
 
 class Input:
     def __init__(self, buttons):
