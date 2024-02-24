@@ -1,4 +1,5 @@
 from typing import Callable
+import pickle, os
 
 class Command:
     def __init__(self, name: str, *arguments):
@@ -15,9 +16,11 @@ class Application:
         self.menuOptions = menuOptions
 
 class OSSetting:
-    def __init__(self, name: str, value):
+    def __init__(self, name: str, value, scale=None):
         self.name = name
         self.value = value
+        self.scale = scale
+        self.type = type(value)
 
 class BufferUpdate:
     def __init__(self, x: int, y: int, x2: int, y2: int):
@@ -33,7 +36,7 @@ class Buffer:
         self.buf = [data] * (int(width/8) * height)
         self.update = BufferUpdate(width, height, 0, 0) #Inverted buffer update, means first draw will actually make proper buf
     
-    def resetUpdate(self):
+    def clearUpdate(self):
         self.update = BufferUpdate(self.width, self.height, 0, 0)
 
 class Buffer2Bit:
@@ -62,6 +65,18 @@ class Timer:
         
     def stop(self):
         self.timer.cancel()
+
+def load_pickle(filename):
+    filepath = os.path.join(filename)
+    if os.path.exists(filepath):
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
+    else:
+        return None
+def save_pickle(filename, data):
+    filepath = os.path.join(filename)
+    with open(filepath, 'wb') as f:
+        pickle.dump(data, f)
 
 #All UI functions should conform. TODO verify
 #This assumes you are updating within (0,0) to (buf.width, buf.height). Could cause damage otherwise!

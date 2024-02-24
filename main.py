@@ -4,6 +4,7 @@
 print("Booting PEPOS...")
 import sys
 import os
+import pickle
 print("Importing driver...", end="\r")
 picdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'pic')
 libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'lib')
@@ -11,7 +12,7 @@ if os.path.exists(libdir):
     sys.path.append(libdir)
 from signal import pause
 import modules
-from oslib import Buffer, Command, Application, OSSetting
+from oslib import Buffer, Command, Application, OSSetting, save_pickle, load_pickle
 
 width = modules.display.epd.width
 height = modules.display.epd.height
@@ -33,6 +34,7 @@ try:
     import applications.tester as tester
     import applications.terminal as terminal
     import applications.newdrawtest as drawtest
+    import applications.settings as settings
 except ImportError:
     ui.draw_text(buf, 0, 20, "Loading applications: Fail")
     ui.draw_text(buf, 0, 35, "Starting safe mode...")
@@ -48,6 +50,7 @@ def handleCommand(command):
     global application
     global osData
     ret = command
+    #"command": # arguments
     if ret.name == "launch": # application name
         print(f"Launching {ret.arguments[0]}")
         ui.draw_rectangle(buf, 8, (height // 2) - 16, width - 8, (height // 2) + 16, 0)
@@ -88,17 +91,23 @@ appList = [
     apps.tools,
     tester.testerApp,
     terminal.app,
-    drawtest.app
+    drawtest.app,
+    settings.app
 ]
 mainApplications = {app.name: app for app in appList} #Access by name. This is the preferred method for app launching
 launcher = mainApplications['launcher'] #Home option in main menu goes to this
 
 #Control system variables/data init
 application = launcher #Start with launcher
-osSettings = {setting.name: setting for setting in [
-    OSSetting("inputDelay", .1),
-    OSSetting("statusLED", True)
-]}
+if(not os.path.exists("osSettings.pkl")):
+    osSettings = {setting.name: setting for setting in [
+        OSSetting("inputDelay", .1, scale=.1),
+        OSSetting("statusLED", True)
+    ]}
+    save_pickle("osSettings.pkl", osSettings)
+else:
+    osSettings = load_pickle("osSettings.pkl")
+
 mainVariables = {
     'mainMenuOpened': False
 }
@@ -107,14 +116,23 @@ osData = {
         'keyboard': False,
         'shift': False,
         'backspace': False,
-        'noDraw': False #Full drawing control, modules are your friend
+        'noDraw': False, #Full drawing control, modules are your friend
     },
     'keyboardQueue': [],
     'modules': modules, #For passthrough to applications
-    'booting': True
+    'booting': True,
+    'settings': osSettings
 }
 mainMenu = ui.Menu(["Home"])
 inputs = [0, 0, 0, 0]
+
+def statusOn():
+    if(osSettings['statusLED']):
+        led.value(1)
+
+def statusOff():
+    if(osSettings['statusLED']):
+        led.value(0)
 
 def handleMain(inputs):
     #These need to be global, are modified from functions they're called in
@@ -127,11 +145,9 @@ def handleMain(inputs):
     if(inputs[3] == 1 and not osData['flags']['noDraw']):
         mainVariables['mainMenuOpened'] = not mainVariables['mainMenuOpened']
         if(mainVariables['mainMenuOpened'] and modules.display.mode != "partial"):
-            if(osSettings['statusLED']):
-                led.value(1)
+            statusOn()
             modules.epdInitPartial(modules.display, buf)
-            if(osSettings['statusLED']):
-                led.value(0)        
+            statusOff()       
 
 
     if(mainVariables['mainMenuOpened']):
@@ -165,19 +181,17 @@ def handleMain(inputs):
 
     #If application isn't taking over drawing, we draw our main menu, controls, and then commit te final buffer to the screen
     if not osData["flags"]["noDraw"]:
-        if(osSettings['statusLED']):
-            led.value(1)
+        statusOn()
         if(mainVariables['mainMenuOpened']):
-            buf.resetUpdate()
+            buf.clearUpdate()
             mainMenu.draw(buf, (width // 3), 0, width, len(mainMenu.options)*16, size=1)
-        if modules.display.mode == "fast" or ((buf.update.x2 - buf.update.x) * (buf.update.y2 - buf.update.y)) / (buf.width * buf.height) > 0.55: #If we're updating over 50% of the screen, just do a normal draw
+        if modules.display.mode == "fast": #or ((buf.update.x2 - buf.update.x) * (buf.update.y2 - buf.update.y)) / (buf.width * buf.height) > 0.55: #If we're updating over 50% of the screen, just do a normal draw
             drawControls()
             modules.epdDraw(modules.display, buf)
         else:
             remaining = modules.epdDrawPartial(modules.display, buf, buf.update.x, buf.update.y, buf.update.x2, buf.update.y2)
-            print(f"{remaining} fast calls left")
-        if(osSettings['statusLED']):
-            led.value(0)
+            print(f"{remaining} partial calls left")
+        statusOff()
 
 #One main call per input
 def input_pressed():

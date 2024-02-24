@@ -71,11 +71,11 @@ def epdDraw(hardware: Display, buffer: Buffer):
         hardware.epd.display(buffer.buf) #A slow, safe update
         hardware.fast_count = 0
         hardware.epd.init_Fast()
-    buffer.resetUpdate()
+    buffer.clearUpdate()
 
 def epdInitPartial(hardware: Display, buffer: Buffer):
     hardware.mode = "partial"
-    buffer.resetUpdate()
+    buffer.clearUpdate()
     hardware.epd.display_Base(buffer.buf)
 
 def epdDrawPartial(hardware: Display, buffer: Buffer, startx: int, starty: int, endx: int, endy: int):
@@ -88,7 +88,7 @@ def epdDrawPartial(hardware: Display, buffer: Buffer, startx: int, starty: int, 
         return hardware.partial_count_limit
     hardware.partial_count += 1
     hardware.epd.display_Partial(buffer.buf, startx, starty, endx, endy)
-    buffer.resetUpdate()
+    buffer.clearUpdate()
     return hardware.partial_count_limit - hardware.partial_count
 
 #Assuming that we're drawing something we're okay with partial updating in (small change)
