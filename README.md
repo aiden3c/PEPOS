@@ -1,4 +1,4 @@
-# PEPOS
+readme# PEPOS
 Python E-Paper Operating System
 
 ![Reader](docs/reader.jpg)
@@ -15,6 +15,10 @@ This custom driver also uses a custom version of [Pinpong](https://pypi.org/proj
 
 # Media
 
-https://github.com/aiden3c/PEPOS/raw/master/docs/partial.mp4
 
-https://github.com/aiden3c/PEPOS/raw/master/docs/launcher.mp4
+https://github.com/aiden3c/PEPOS/assets/53726630/fca54ccc-6edc-4370-9922-db5d56f22497
+
+
+
+https://github.com/aiden3c/PEPOS/assets/53726630/3b066e19-f5eb-4c53-b927-bd51b8e43f1c
+
