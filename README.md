@@ -14,5 +14,5 @@ This code alone will not work, it is dependent on a custom version of [Waveshare
 This custom driver also uses a custom version of [Pinpong](https://pypi.org/project/pinpong/) which has been **heavily** optimized for speed.
 
 # Media
-![Partial Updates](docs/partial.mp4)
-![Application Launcher](docs/launcher.mp4)
+<video src='docs/partial.mp4'>
+<video src='docs/launcher.mp4'>
