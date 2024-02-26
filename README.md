@@ -1,7 +1,7 @@
 # PEPOS
 Python E-Paper Operating System
 
-[Reader](docs/reader.jpg)
+![Reader](docs/reader.jpg)
 
 PEPOS is an interpreted control program (with applications!) written in Python, designed to run on a [Waveshare 2.7" e-ink display](https://www.waveshare.com/2.7inch-e-paper-hat.htm).
 *In the future, other Waveshare displays should work. I don't have any in my possession at the moment*
@@ -14,5 +14,5 @@ This code alone will not work, it is dependent on a custom version of [Waveshare
 This custom driver also uses a custom version of [Pinpong](https://pypi.org/project/pinpong/) which has been **heavily** optimized for speed.
 
 # Media
-[Partial Updates](docs/partial.mov)
-[Application Launcher](docs/launcher.mov)
+![Partial Updates](docs/partial.mp4)
+![Application Launcher](docs/launcher.mp4)
