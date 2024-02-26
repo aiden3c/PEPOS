@@ -35,6 +35,7 @@ try:
     import applications.terminal as terminal
     import applications.newdrawtest as drawtest
     import applications.settings as settings
+    import vnovel.main as catquest
 except ImportError:
     ui.draw_text(buf, 0, 20, "Loading applications: Fail")
     ui.draw_text(buf, 0, 35, "Starting safe mode...")
@@ -92,7 +93,8 @@ appList = [
     tester.testerApp,
     terminal.app,
     drawtest.app,
-    settings.app
+    settings.app,
+    catquest.app
 ]
 mainApplications = {app.name: app for app in appList} #Access by name. This is the preferred method for app launching
 launcher = mainApplications['launcher'] #Home option in main menu goes to this
