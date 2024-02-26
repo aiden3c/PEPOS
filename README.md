@@ -14,5 +14,7 @@ This code alone will not work, it is dependent on a custom version of [Waveshare
 This custom driver also uses a custom version of [Pinpong](https://pypi.org/project/pinpong/) which has been **heavily** optimized for speed.
 
 # Media
-<video src='docs/partial.mp4'>
-<video src='docs/launcher.mp4'>
+
+https://github.com/aiden3c/PEPOS/raw/master/docs/partial.mp4
+
+https://github.com/aiden3c/PEPOS/raw/master/docs/launcher.mp4
