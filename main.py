@@ -149,8 +149,9 @@ def handleMain(inputs):
         if(mainVariables['mainMenuOpened'] and modules.display.mode != "partial"):
             statusOn()
             modules.epdInitPartial(modules.display, buf)
-            statusOff()       
-
+            statusOff()
+        else:
+            modules.display.mode = "fast"
 
     if(mainVariables['mainMenuOpened']):
         emuInputs = [0, 0, 0, 0] #Dont pass inputs to application

@@ -196,14 +196,13 @@ def readerInit(buf, app, osData):
     ]
     app.variables["menu"] = ui.Menu([book.name for book in books])
     app.variables["ITEM_DOCUMENT"] = ITEM_DOCUMENT
+    osData["modules"].display.mode = "fast"
     return True
 
 def homeInit(buf: Buffer, _, osData):
     ui.draw_rectangle(buf, 0, 0, buf.width, buf.height)
     osData['modules'].display.mode = "fast"
-    if not osData['booting']:
-        osData['modules'].epdDraw(osData['modules'].display, buf)
-    osData['modules'].display.mode = "partial"
+    osData['modules'].epdDraw(osData['modules'].display, buf)
     return True
 
 launcher = Application("launcher", homeInit, drawHome, nop, {"menu": ui.Menu(["Reader", "CatQuest", "Settings"])})
